@@ -1,57 +1,80 @@
-import pandas as pd
+# app.py
 import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+from recommender_openai import recommend_games, category_columns
 
-# === Load Data === #
-DATA_PATH = "../data/games.csv"
-st.title("Board Game Explorer")
+# App config
+st.set_page_config(page_title="Board Game Recommender", layout="wide")
 
-st.header("Load Dataset")
-try:
-    games_df = pd.read_csv(DATA_PATH, low_memory=False)
-    games_df = games_df.convert_dtypes()
-    st.success(f"Loaded {len(games_df)} games from {DATA_PATH}")
-except FileNotFoundError:
-    st.error(f"Could not find {DATA_PATH}. Please check the file path.")
-    st.stop()
+# Title
+st.title("Board Game Recommender")
+st.markdown("Find the perfect board game using AI and real data.")
 
-# === User Preferences === #
-st.header("Filter Games by Preference")
+# Load game data
+@st.cache_data
+def load_data():
+    df = pd.read_csv("../data/games.csv")
+    return df
 
-# Number of players filter
-min_players = st.number_input("Minimum number of players", min_value=1, max_value=20, value=2)
-max_players = st.number_input("Maximum number of players", min_value=min_players, max_value=20, value=4)
+games_df = load_data()
 
-# Rating filter
-min_rating = st.slider("Minimum average rating", 0.0, 10.0, 7.0)
+# --- USER INPUTS ---
+st.sidebar.header("Filter Options")
+min_players = st.sidebar.number_input("Minimum number of players", min_value=1, max_value=20, value=2)
+# Dropdown for categories
+category_display = [col.replace("Cat:", "") for col in category_columns]
+category = st.sidebar.selectbox("Game category", category_display)
 
-# Category filter
-cat_cols = [col for col in games_df.columns if col.startswith("Cat:")]
-if cat_cols:
-    cat_names = [c.replace("Cat:", "") for c in cat_cols]
-    selected_category = st.selectbox("Select game category", ["All"] + cat_names)
+top_n = st.sidebar.slider("Number of AI recommendations", 1, 10, 3)
+
+# --- FILTER GAMES LOCALLY ---
+if "MinPlayers" in games_df.columns and "MaxPlayers" in games_df.columns:
+    filtered_df = games_df[
+        (games_df["MinPlayers"] <= min_players)
+        & (games_df["MaxPlayers"] >= min_players)
+    ]
 else:
-    selected_category = "All"
+    st.warning("Your CSV doesn't have 'MinPlayers' or 'MaxPlayers' columns.")
+    filtered_df = games_df
 
-# Apply filters
-filtered_df = games_df[
-    (games_df["MinPlayers"] <= max_players)
-    & (games_df["MaxPlayers"] >= min_players)
-    & (games_df["AvgRating"] >= min_rating)
-]
+if category:
+    category_col = f"Cat:{category}"
+    if category_col in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df[category_col] == 1]
+    else:
+        st.warning(f"Category '{category}' not found in data.")
 
-if selected_category != "All":
-    cat_col = f"Cat:{selected_category}"
-    filtered_df = filtered_df[filtered_df[cat_col] == 1]
-
+# --- SHOW LOCAL STATS ---
+st.subheader("Game Overview")
 st.write(f"Found {len(filtered_df)} games matching your preferences.")
-st.dataframe(filtered_df[["Name", "AvgRating", "MinPlayers", "MaxPlayers"]].head(10))
 
-# === Visualization === #
-st.header("Game Counts by Category")
-if cat_cols:
-    category_counts = games_df[cat_cols].sum().sort_values(ascending=False)
-    category_counts.index = [c.replace("Cat:", "") for c in category_counts.index]
-    st.bar_chart(category_counts)
-else:
-    st.info("No category columns found (columns starting with 'Cat:'). Displaying total game count instead.")
-    st.metric("Total Games in Dataset", len(games_df))
+if len(filtered_df) > 0:
+    # Show bar chart of games per category
+    if "Category" in filtered_df.columns:
+        category_counts = (
+            filtered_df["Category"]
+            .value_counts()
+            .head(10)
+            .sort_values(ascending=True)
+        )
+
+        fig, ax = plt.subplots(figsize=(8, 4))
+        category_counts.plot(kind="barh", ax=ax)
+        ax.set_xlabel("Count")
+        ax.set_ylabel("Category")
+        ax.set_title("Top Game Categories (Filtered)")
+        st.pyplot(fig)
+
+    # Optional: show top few games
+    st.dataframe(filtered_df[["Name", "YearPublished", "AvgRating"]].head(10))
+
+# --- OPENAI RECOMMENDATION SECTION ---
+st.markdown("---")
+st.subheader("AI Recommendations")
+
+if st.button("Get AI Recommendations"):
+    with st.spinner("Asking the AI for recommendations..."):
+        recommendations = recommend_games(min_players, category, top_n)
+        st.markdown("Recommended Games:")
+        st.write(recommendations)
