@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from recommender_openai import recommend_games, category_columns
+from llm import recommend_games, category_columns
 
 # App config
 st.set_page_config(page_title="Board Game Recommender", layout="wide")
