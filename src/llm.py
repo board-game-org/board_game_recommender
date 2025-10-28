@@ -28,7 +28,7 @@ category_columns = [col for col in games_df.columns if col.startswith("Cat:")]
 def get_llm_scores(user_description: str, min_players: int, category: str, top_n: int = 10):
     """
     Generate LLM-based relevance scores for candidate games based on the user description.
-    Returns a DataFrame: [Name, LLM_Score].
+    Returns a DataFrame: [BGGId, Name, LLM_Score].
     """
     category_col = f"Cat:{category}"
     if category_col not in merged_df.columns:
@@ -124,10 +124,15 @@ def get_llm_scores(user_description: str, min_players: int, category: str, top_n
             f"Raw response:\n{csv_output}"
         )
     llm_scores_df["LLM_Score"] = llm_scores_df["LLM_Score"].clip(0, 1)
+
+    candidate_lookup = candidate_games[["BGGId", "Name"]].drop_duplicates()
+    llm_scores_df = candidate_lookup.merge(llm_scores_df, on="Name", how="right")
+    llm_scores_df.dropna(subset=["BGGId"], inplace=True)
+
     if top_n:
         llm_scores_df = llm_scores_df.sort_values("LLM_Score", ascending=False).head(top_n)
 
-    return llm_scores_df
+    return llm_scores_df[["BGGId", "Name", "LLM_Score"]]
 
 
 if __name__ == "__main__":
