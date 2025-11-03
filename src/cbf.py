@@ -1,62 +1,69 @@
-"""
-cbf_model.py
-Content-Based Filtering model using game features like category, mechanics, and description.
-"""
-
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
+import pickle
 from sklearn.metrics.pairwise import cosine_similarity
 
-def get_cbf_scores(user_preferences: dict, games_path: str = "../data/games.csv", top_n: int = 10):
-    """
-    Compute CBF-based recommendation scores using textual similarity of game features.
+# load precomputed CBF data
+with open("data/precomputed_CBF.pkl", "rb") as f:
+    _cbf_data = pickle.load(f)
 
-    Parameters
-    ----------
-    user_preferences : dict
-        Example: {"category": "Strategy", "mechanics": "Deck Building", "min_players": 2}
-    games_path : str
-        Path to the games metadata CSV file.
-    top_n : int
-        Number of top recommendations.
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with columns [Name, CBF_Score].
-    """
-    games_df = pd.read_csv(games_path)
-
-    # Build textual tokens from available category indicators and descriptions
-    category_columns = [col for col in games_df.columns if col.startswith("Cat:")]
-    category_labels = {col: col.split(":", 1)[1] for col in category_columns}
-
-    def _categories_as_text(row):
-        tokens = [category_labels[col] for col in category_columns if row.get(col, 0) == 1]
-        return " ".join(tokens)
-
-    games_df["category_text"] = games_df.apply(_categories_as_text, axis=1)
-
-    games_df["combined_features"] = (
-        games_df.get("Description", "").fillna("").astype(str)
-        + " "
-        + games_df["category_text"]
-        + " "
-        + games_df.get("Family", "").fillna("").astype(str)
-    ).str.strip()
-
-    # Fit TF-IDF and compute similarity
-    vectorizer = TfidfVectorizer(stop_words="english")
-    tfidf_matrix = vectorizer.fit_transform(games_df["combined_features"])
-    user_text = f"{user_preferences.get('category', '')} {user_preferences.get('mechanics', '')}"
-    user_vec = vectorizer.transform([user_text])
-
-    sims = cosine_similarity(user_vec, tfidf_matrix).flatten()
-    games_df["CBF_Score"] = sims
-
-    return games_df[["BGGId", "Name", "CBF_Score"]].sort_values("CBF_Score", ascending=False).head(top_n)
+games_df = _cbf_data["games_df"]
+mlb_game_categories = _cbf_data["mlb_game_categories"]
+mlb_game_mechanics = _cbf_data["mlb_game_mechanics"]
+mlb_game_types = _cbf_data["mlb_game_types"]
+scaler = _cbf_data["scaler"]
+weighted_features = _cbf_data["weighted_features"]  # use this as the feature matrix
 
 
-if __name__ == "__main__":
-    df = get_cbf_scores({"category": "Family", "mechanics": "Card Drafting"})
-    print(df)
+# get mean value
+def mean_or_default(value, default):
+    if isinstance(value, (list, tuple, np.ndarray)) and len(value) > 0:
+        return np.mean(value)
+    elif isinstance(value, (int, float)):
+        return value
+    return default
+
+
+# get CBF scores
+def get_CBF_scores(attributes: dict):
+
+    n_games = games_df.shape[0]
+
+    # Build query vectors
+    cat_vec = mlb_game_categories.transform(
+        [attributes.get('game_categories', [])]
+    ) if 'game_categories' in attributes else np.zeros((1, len(mlb_game_categories.classes_)))
+
+    mech_vec = mlb_game_mechanics.transform(
+        [attributes.get('game_mechanics', [])]
+    ) if 'game_mechanics' in attributes else np.zeros((1, len(mlb_game_mechanics.classes_)))
+
+    type_vec = mlb_game_types.transform(
+        [attributes.get('game_types', [])]
+    ) if 'game_types' in attributes else np.zeros((1, len(mlb_game_types.classes_)))
+
+    # Numeric features
+    game_weight_avg = mean_or_default(attributes.get('game_weight'), 2.5)
+    players_avg = mean_or_default(attributes.get('players'), 3)
+    play_time_avg = mean_or_default(attributes.get('play_time'), 90)
+
+    numeric_vec = np.array([[game_weight_avg, players_avg, play_time_avg]])
+    numeric_vec_scaled = scaler.transform(numeric_vec)
+
+    # Combine feature vector (match weighted_features)
+    query_vector = np.hstack([
+        cat_vec * 1.5,
+        mech_vec * 2.0,
+        type_vec * 1.0,
+        numeric_vec_scaled * 0.5
+    ])
+
+    # compute similarity
+    cbf_scores = cosine_similarity(query_vector, weighted_features).flatten()
+
+    # normalize
+    if cbf_scores.max() > cbf_scores.min():
+        cbf_scores_norm = (cbf_scores - cbf_scores.min()) / (cbf_scores.max() - cbf_scores.min())
+    else:
+        cbf_scores_norm = np.zeros_like(cbf_scores)
+
+    return cbf_scores_norm
