@@ -1,9 +1,10 @@
 import numpy as np
+import pandas as pd
 import pickle
 from sklearn.metrics.pairwise import cosine_similarity
 
 # load precomputed CBF data
-with open("data/precomputed_CBF.pkl", "rb") as f:
+with open("../data/precomputed_CBF.pkl", "rb") as f:
     _cbf_data = pickle.load(f)
 
 games_df = _cbf_data["games_df"]
@@ -13,7 +14,6 @@ mlb_game_types = _cbf_data["mlb_game_types"]
 scaler = _cbf_data["scaler"]
 weighted_features = _cbf_data["weighted_features"]  # use this as the feature matrix
 
-
 # get mean value
 def mean_or_default(value, default):
     if isinstance(value, (list, tuple, np.ndarray)) and len(value) > 0:
@@ -22,9 +22,8 @@ def mean_or_default(value, default):
         return value
     return default
 
-
 # get CBF scores
-def get_CBF_scores(attributes: dict):
+def get_cbf_scores(attributes: dict):
 
     n_games = games_df.shape[0]
 
@@ -67,3 +66,26 @@ def get_CBF_scores(attributes: dict):
         cbf_scores_norm = np.zeros_like(cbf_scores)
 
     return cbf_scores_norm
+
+if __name__ == "__main__":
+    import pandas as pd
+
+    # Example user input
+    sample_input = {
+        "game_categories": ["Abstract / Strategy", "Animals / Nature"],
+        "game_mechanics": ["Team Play"],
+        "game_types": ["Customizable"],
+        "game_weight": [2.8],
+        "players": [4],
+        "play_time": [90],
+    }
+
+    # Compute scores
+    scores = get_cbf_scores(sample_input)
+
+    # Create a DataFrame combining game names and their CBF scores
+    df = games_df.copy()
+    df["cbf_score"] = scores
+    df_sorted = df.sort_values(by="cbf_score", ascending=False).head(10)
+
+    print(df_sorted[["name", "cbf_score"]] if "name" in df.columns else df_sorted.head(10))
