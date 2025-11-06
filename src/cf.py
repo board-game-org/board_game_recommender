@@ -31,23 +31,17 @@ def get_cf_scores(
 
     Parameters
     ----------
-    ratings : int
-        ID of the target user.
-    ratings_path : str
-        Path to the user-game ratings CSV file.
-    games_path : str
-        Path to the games metadata CSV (used to map names).
-    top_n : int
-        Number of top recommended games to return.
+    ratings : array
+        array of indices of liked items
 
     Returns
     -------
-    pd.DataFrame
-        DataFrame with columns [Name, CF_Score].
+    scores
+        array of ratings for each board game
     """
 
     #load board game embeddings
-    V = np.load('V_final.npy')
+    V = np.load('../data/V_final.npy')
     
     # calculte user embeddings based on inputted likes 
     u = fold_in_implicit_user(V,liked_items=ratings, alpha=5, lambda_=0.3)
