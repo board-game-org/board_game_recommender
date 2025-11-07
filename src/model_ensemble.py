@@ -107,8 +107,7 @@ def ensemble_scores(liked_games=None,
         Combined recommendations with composite score.
     """
     # get cf_scores
-    # cf_scores = get_cf_scores(liked_games, disliked_games)
-    cf_scores = np.zeros(n_games)
+    cf_scores = get_cf_scores(ratings = liked_games)
     
     # get cbf_scores
     cbf_scores = get_cbf_scores(attributes=attributes)
@@ -311,8 +310,8 @@ def display_recommendations(liked_games,
 ###
 
 # Example 1
-liked_games = [163412, 230802]
-disliked_games = [38929, 285533]
+liked_games = [235, 222]
+disliked_games = [6234, 1235]
 exclude_games = [184477]
 description = ''
 attributes = {'game_types': ['Abstract Game', 'Family Game'],
@@ -326,7 +325,7 @@ attributes = {'game_types': ['Abstract Game', 'Family Game'],
 display_recommendations(liked_games, disliked_games, exclude_games, attributes, description, n_recommendations=5, alpha=0.5, beta=0.33)
 
 # Example 2
-liked_games = [167791]
+liked_games = [1111]
 disliked_games = []
 description = ''
 exclude_games = [175155, 221194]
@@ -342,7 +341,7 @@ attributes = {'game_types': ['Strategy Game'],
 display_recommendations(liked_games, disliked_games, exclude_games, attributes, description, n_recommendations=5, alpha=0.5, beta=0.33)
 
 # Example 3
-liked_games = [31260, 13]
+liked_games = [222, 13]
 disliked_games = []
 description = ''
 exclude_games = [58421]
@@ -358,7 +357,7 @@ attributes = {'game_types': ['Strategy Game','Family Game'],
 display_recommendations(liked_games, disliked_games, exclude_games, attributes, description, n_recommendations=5, alpha=0.5, beta=0.33)
 
 # Example 4
-liked_games = [303954]
+liked_games = [33]
 disliked_games = []
 exclude_games = []
 description = 'historical games preferably with economics and trading'
