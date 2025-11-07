@@ -14,4 +14,10 @@ anaconda_projects/db/*.db
 
 # OS
 .DS_Store
-Thumbs.db.env
+Thumbs.db
+
+# Environment files
+.env
+
+# Streamlit secrets
+src/.streamlit/secrets.toml
