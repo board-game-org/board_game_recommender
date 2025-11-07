@@ -8,7 +8,6 @@ anaconda_projects/db/*.db
 
 # Streamlit
 .streamlit/
-.streamlit/secrets.toml
 
 # Jupyter
 .ipynb_checkpoints/
