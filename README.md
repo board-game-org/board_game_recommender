@@ -20,6 +20,11 @@ pip install jupyter
 ```
 Make sure to have a data folder consisting of:
 - data
+
+## How to Run the App
+1. Make sure OPENAI_API_KEY value is replaced in .streamlit/secrets.toml.
+2. Run from root workspace: `streamlit run src/app.py`
+
 ## ▶️ How to Run the Jupyter Notebook
 
 Activate your virtual environment (if using one):

@@ -11,6 +11,7 @@ def fold_in_implicit_user(V, liked_items, alpha=5, lambda_=0.03):
     """
     Compute a new user vector given items they've liked (implicit feedback).
     """
+    liked_items = np.array(liked_items, dtype=int).flatten()
     V_i = V[liked_items]
     # confidence weights
     C_i = 1 + alpha * np.ones(len(liked_items), dtype=np.float32)
@@ -19,38 +20,42 @@ def fold_in_implicit_user(V, liked_items, alpha=5, lambda_=0.03):
     b = V_i.T @ (C_i * np.ones(len(liked_items), dtype=np.float32))
     
     u_new = np.linalg.solve(A, b)
+    
     return u_new
 
-
 def get_cf_scores(
-    ratings: np.ndarray = np.array([]),
-    #games_path: str = "../data/games.csv",
+    liked_items: np.ndarray = np.array([]),
+    V = None,
+    games_path: str = "./data/games.csv",
 ):
     """
     Compute CF-based recommendation scores based on pre-computed item embedding matrix V and a vector of movie IDs of user likes
 
     Parameters
     ----------
-    ratings : int
-        ID of the target user.
-    ratings_path : str
-        Path to the user-game ratings CSV file.
-    games_path : str
-        Path to the games metadata CSV (used to map names).
-    top_n : int
-        Number of top recommended games to return.
+    ratings : array
+        array of indices of liked items
+    V : matrix
+        item embedding matrix used to predict CF scores
 
     Returns
     -------
-    pd.DataFrame
-        DataFrame with columns [Name, CF_Score].
+    scores
+        array of ratings for each board game
     """
 
-    #load board game embeddings
-    V = np.load('V_final.npy')
-    
+    #load board game embeddings if it wasn't passed in
+    if V is None:
+        data = np.load('./data/V_final_quantized.npz')
+        V = data["V_q"].astype(np.float32) / 127 * data["scale"]
+
+    games_df = pd.read_csv(games_path)['BGGId']
+
+    #get the index number of the liked games
+    liked_index = games_df.isin(liked_items).index
+
     # calculte user embeddings based on inputted likes 
-    u = fold_in_implicit_user(V,liked_items=ratings, alpha=5, lambda_=0.3)
+    u = fold_in_implicit_user(V,liked_items=liked_index, alpha=5, lambda_=0.3)
 
     #calculate scores
     scores = V.dot(u)
@@ -59,5 +64,12 @@ def get_cf_scores(
     scores = (scores - min(scores)) / (max(scores) - min(scores))
 
     # returns array of scores per movie
-    return scores 
+    return scores
 
+if __name__ == "__main__":
+    # Example usage
+    example_ratings = np.array([10, 50, 200, 33333])
+    scores = get_cf_scores(liked_items=example_ratings)
+    print("CF Scores:", scores)
+    print("CF Scores Length:", len(scores))
+    
