@@ -469,12 +469,11 @@ def generate_game_insight(game_info: dict, context: dict) -> Optional[str]:
         "game": game_info,
     }
     prompt = (
-        "You are a friendly board game concierge chatting with the user. "
-        "Using the structured data below, write one short sentence (max 30 words) "
-        "explaining why this game could be awesome for them. "
-        "Reference specific mechanics, themes, player counts, or play time when possible. "
-        "Do not repeat the game name verbatim.\n\n"
-        f"{json.dumps(payload, indent=2)}"
+        "You are a friendly board game concierge responding to a specific user request. "
+        "Write ONE lively sentence (max 35 words) that ties this game's traits to the given preferences. "
+        "Explicitly reference at least one overlap (mechanics, categories, player count, play time, or the user's description). "
+        "Avoid repeating the exact game name or sounding generic.\n\n"
+        f"{json.dumps(payload, indent=2, default=str)}"
     )
 
     try:
