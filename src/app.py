@@ -10,9 +10,12 @@ from model_ensemble import ensemble_scores
 BACKGROUND_COLOR = "#12241C"         # Dark green for main background
 BACKGROUND_SECONDARY = "#F5F5E6"     # Light gray for sidebar/user input area
 BACKGROUND_INPUT = "#FFFFFF"         # White input box background
-FONT_PRIMARY = "#F5F5E6"             # Off-white text on dark background
+FONT_PRIMARY = "#FFF8E7"             # Off-white text on dark background
 FONT_SECONDARY = "#1C1C1C"           # Dark text for light backgrounds
+FONT_TERTIARY = "#C5CBB5"            # Accent text color
+CARD_COLOR = "#12241C"                # Card background matches main background
 BORDER_COLOR = "rgba(0, 0, 0, 0.1)"  # Soft divider/border line
+CARD_BORDER_COLOR = "#1A3629"        # Card border accent
 SLIDER_NOTCH_COLOR = "#A4B465"          # Muted green for slider accents
 SLIDER_ACTIVE_COLOR = "#626F47"         # Darker green for active slider track
 BUTTON_COLOR = "#A4B465"               # Muted green for buttons
@@ -80,12 +83,24 @@ section.main > div.block-container {{
   min-height: 100px !important;
 }}
 
+/* Default tag styling */
 [data-testid="stSidebar"] .stMultiSelect div[data-baseweb="tag"] {{
   background-color: {BACKGROUND_INPUT} !important;
   color: {FONT_SECONDARY} !important;
   border: none !important;
   box-shadow: none !important;
 }}
+
+/* Highlight tags for the 'Liked Board Games' widget */
+[data-testid="stSidebar"] div[aria-label="Liked Board Games"] div[data-baseweb="tag"] {{
+  background-color: #2e8b57 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}}
+[data-testid="stSidebar"] div[aria-label="Liked Board Games"] div[data-baseweb="tag"] p {{
+  color: #ffffff !important;
+}}
+
 
 [data-testid="stSidebar"] input::placeholder,
 [data-testid="stSidebar"] textarea::placeholder {{
@@ -106,6 +121,30 @@ section.main > div.block-container {{
 [data-testid="stSidebar"] .stSlider div[data-testid="stTickBarMin"],
 [data-testid="stSidebar"] .stSlider div[data-testid="stTickBarMax"] {{
   color: {FONT_SECONDARY} !important;
+}}
+
+[data-testid="stSidebar"] .range-display {{
+  font-size: 0.9rem;
+  color: {FONT_SECONDARY};
+  margin-top: 0.25rem;
+  margin-bottom: 0.9rem;
+  font-weight: 600;
+}}
+
+[data-testid="stSidebar"] .range-display span {{
+  color: {SLIDER_ACTIVE_COLOR};
+}}
+
+[data-testid="stSidebar"] .range-display {{
+  font-size: 0.9rem;
+  color: {FONT_SECONDARY};
+  margin-top: 0.25rem;
+  margin-bottom: 0.9rem;
+  font-weight: 600;
+}}
+
+[data-testid="stSidebar"] .range-display span {{
+  color: {SLIDER_ACTIVE_COLOR};
 }}
 
 /* Sidebar primary button */
@@ -230,7 +269,18 @@ def load_game_types():
 
 @st.cache_data
 def load_master_assets():
-    cols = ["bgg_id", "name", "thumbnail", "image", "ImagePath", "bgg_link"]
+    cols = [
+        "bgg_id",
+        "thumbnail",
+        "image",
+        "ImagePath",
+        "bgg_link",
+        "players_min",
+        "players_max",
+        "time_min",
+        "time_max",
+        "time_avg",
+    ]
     master_df = pd.read_csv("./data/games_master_data.csv", usecols=cols)
     master_df["bgg_id"] = pd.to_numeric(master_df["bgg_id"], errors="coerce").astype("Int64")
     master_df.dropna(subset=["bgg_id"], inplace=True)
@@ -240,27 +290,125 @@ def load_master_assets():
         .fillna(master_df["image"])
     )
     master_df.dropna(subset=["asset_url"], inplace=True)
-    master_df = master_df[["bgg_id", "asset_url", "bgg_link"]].drop_duplicates("bgg_id")
+    master_df = master_df.drop_duplicates("bgg_id")
     return master_df.set_index("bgg_id")
 
 games_df = load_data()
+games_lookup = games_df.set_index("BGGId")
 mechanics_options = load_mechanics()
 categories_options = load_categories()
 game_type_options = load_game_types()
 master_assets = load_master_assets()
 DEFAULT_THUMBNAIL = "https://images.pexels.com/photos/411207/pexels-photo-411207.jpeg?auto=compress&cs=tinysrgb&h=320&w=320"
-CARD_GRID_STYLE = """
+CARD_GRID_STYLE = f"""
 <style>
-.game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;margin-top:1.5rem}
-.game-card{background-color:#1A2B22;border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:transform .2s, box-shadow .2s}
-.game-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.35)}
-.game-image{width:100%;height:220px;object-fit:cover}
-.game-content{padding:1rem 1.25rem;color:#F5F5E6}
-.game-title{font-size:1.15rem;font-weight:700;margin-bottom:.4rem}
-.game-meta{font-size:.9rem;color:#B8B8B8;display:flex;gap:1rem;align-items:center;margin-bottom:.6rem}
-.game-desc{font-size:.95rem;color:#CCC;margin-bottom:.8rem}
-.game-link{color:#A4B465;font-weight:600;text-decoration:none}
-.game-link:hover{text-decoration:underline}
+.game-grid {{
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}}
+.game-card {{
+    background-color: {CARD_COLOR};
+    color: {FONT_SECONDARY};
+    border-radius: 16px;
+    border: 0.5px solid {CARD_BORDER_COLOR};
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: stretch;
+    min-height: 220px;
+}}
+.game-card:hover {{
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}}
+.game-image-wrapper {{
+    width: 220px;
+    height: 220px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-top-left-radius: 16px;
+    border-bottom-left-radius: 16px;
+}}
+.game-image-wrapper img {{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}}
+.game-content {{
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}}
+.game-title {{
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    color: {FONT_PRIMARY};
+}}
+.game-meta {{
+    font-size: 1rem;
+    color: #B8B8B8;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.6rem;
+}}
+.game-meta .star-icon {{
+    color: #ffcc00;
+    font-size: 1.2rem;
+}}
+.game-meta .rating-value {{
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: {FONT_PRIMARY};
+}}
+.game-meta-secondary {{
+    font-size: 0.95rem;
+    color: {FONT_SECONDARY};
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+}}
+.game-meta-secondary .meta-item {{
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+}}
+.game-meta-secondary .clock-icon,
+.game-meta-secondary .player-icon {{
+    color: #ffcc00;
+    font-size: 1rem;
+}}
+.game-meta-secondary .meta-value {{
+    color: {FONT_TERTIARY};
+}}
+.game-desc {{
+    font-size: 0.95rem;
+    color: #CCC;
+    margin-bottom: 0.8rem;
+}}
+.game-link {{
+    color: {FONT_TERTIARY};
+    font-weight: 600;
+    text-decoration: none;
+}}
+.game-link:hover {{
+    text-decoration: none;
+}}
+.game-insight {{
+    font-size: 0.95rem;
+    color: {FONT_PRIMARY};
+    margin-bottom: 0.6rem;
+    line-height: 1.35;
+}}
 </style>
 """
 
@@ -270,6 +418,8 @@ if "recommendation_reason" not in st.session_state:
     st.session_state["recommendation_reason"] = None
 if "search_context" not in st.session_state:
     st.session_state["search_context"] = {}
+if "game_insights" not in st.session_state:
+    st.session_state["game_insights"] = {}
 
 
 def generate_recommendation_reason(context: dict, recommendations: pd.DataFrame) -> Optional[str]:
@@ -312,6 +462,39 @@ def generate_recommendation_reason(context: dict, recommendations: pd.DataFrame)
     except Exception:
         return None
 
+
+def generate_game_insight(game_info: dict, context: dict) -> Optional[str]:
+    payload = {
+        "user_preferences": context,
+        "game": game_info,
+    }
+    prompt = (
+        "You are a friendly board game concierge responding to a specific user request. "
+        "Write ONE lively sentence (max 35 words) that ties this game's traits to the given preferences. "
+        "Explicitly reference at least one overlap (mechanics, categories, player count, play time, or the user's description). "
+        "Avoid repeating the exact game name or sounding generic.\n\n"
+        f"{json.dumps(payload, indent=2, default=str)}"
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert board game sommelier. "
+                        "Be vivid, concise, and upbeat."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.4,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception:
+        return None
+
 # ========== SIDEBAR ==========
 st.sidebar.header("Your Preferences")
 
@@ -327,7 +510,19 @@ disliked_games = st.sidebar.multiselect(
 )
 
 # --- Filter inputs ---
-year_range = st.sidebar.slider("Year Published", 1990, 2021, (2000, 2021))
+default_year_range = (2000, 2021)
+if "year_range" not in st.session_state:
+    st.session_state["year_range"] = default_year_range
+
+st.sidebar.slider(
+    "Year Published",
+    1990,
+    2021,
+    value=st.session_state["year_range"],
+    key="year_range_slider"
+)
+st.session_state["year_range"] = st.session_state["year_range_slider"]
+year_range = st.session_state["year_range"]
 rating_min = st.sidebar.slider(
     "Minimum Rating", 1.0, 10.0, 6.5, step=0.5, format="%.1f"
 )
@@ -347,7 +542,6 @@ game_type = st.sidebar.multiselect("Game Type", game_type_options)
 description = st.sidebar.text_area("Describe the kind of board game you enjoy",
                                    placeholder="Example: I like strategic games with some luck and engine building mechanics.")
 
-# ========= RUN RECOMMENDER ==========
 # ========= RUN RECOMMENDER ==========
 st.sidebar.markdown("### Get Recommendations (Choose a Model)")
 
@@ -406,7 +600,7 @@ if selected_model:
             exclude_games=[],
             attributes=attributes,
             description=description,
-            n_recommendations=20,
+            n_recommendations=5,
             alpha=alpha,
             beta=beta,
         )
@@ -435,24 +629,128 @@ elif isinstance(recommendations_df, pd.DataFrame) and recommendations_df.empty:
 elif isinstance(recommendations_df, pd.DataFrame):
     recommendations_df = recommendations_df.reset_index(drop=True)
     recommendations_df = recommendations_df.merge(
-        master_assets, left_on="bgg_id", right_index=True, how="left"
+        master_assets, left_on="bgg_id", right_index=True, how="left", suffixes=("", "_asset")
     )
 
     cards = ['<div class="game-grid">']
-    for _, row in recommendations_df.iterrows():
+    for _, row in recommendations_df.head(5).iterrows():
         image_url = row.get("asset_url") or DEFAULT_THUMBNAIL
         title = str(row["name"])
         score = row.get("recommender_score", 0)
         desc = f"Hybrid Score: {score:.3f}"
+        bgg_link = row.get("bgg_link")
+        if pd.isna(bgg_link) or not str(bgg_link).strip():
+            bgg_id = row.get("bgg_id")
+            if pd.notna(bgg_id):
+                bgg_link = f"https://boardgamegeek.com/boardgame/{int(bgg_id)}"
+            else:
+                bgg_link = "https://boardgamegeek.com/"
+
+        avg_rating = row.get("avg_rating")
+        rating_display = f"{avg_rating:.1f}" if pd.notna(avg_rating) else "N/A"
+
+        def _valid(val):
+            return pd.notna(val) and val > 0
+
+        def derive_playtime(source):
+            min_pt = (
+                source.get("time_min_asset")
+                or source.get("ComMinPlaytime")
+                or source.get("time_min")
+            )
+            max_pt = (
+                source.get("time_max_asset")
+                or source.get("ComMaxPlaytime")
+                or source.get("time_max")
+            )
+            avg_pt = (
+                source.get("time_avg_asset")
+                or source.get("MfgPlaytime")
+                or source.get("time_avg")
+            )
+
+            if _valid(min_pt) and _valid(max_pt):
+                min_val = int(min_pt)
+                max_val = int(max_pt)
+                if min_val == max_val:
+                    return f"{min_val} mins"
+                return f"{min_val}-{max_val} mins"
+            if _valid(avg_pt):
+                return f"{int(avg_pt)} mins"
+            if _valid(min_pt):
+                return f"{int(min_pt)} mins"
+            if _valid(max_pt):
+                return f"{int(max_pt)} mins"
+            return None
+
+        play_time_display = derive_playtime(row) or "N/A"
+
+        def derive_players(source):
+            min_players = (
+                source.get("players_min_asset")
+                or source.get("players_min")
+                or source.get("MinPlayers")
+            )
+            max_players = (
+                source.get("players_max_asset")
+                or source.get("players_max")
+                or source.get("MaxPlayers")
+            )
+            if pd.notna(min_players) and pd.notna(max_players):
+                min_val = int(min_players)
+                max_val = int(max_players)
+                if min_val == max_val:
+                    return f"{min_val}"
+                return f"{min_val}-{max_val}"
+            if pd.notna(min_players):
+                return f"{int(min_players)}"
+            if pd.notna(max_players):
+                return f"{int(max_players)}"
+            return None
+
+        players_display = derive_players(row) or "N/A"
+
+        bgg_id = row.get("bgg_id")
+        if pd.notna(bgg_id) and bgg_id in games_lookup.index:
+            details = games_lookup.loc[bgg_id]
+            if isinstance(details, pd.DataFrame):
+                details = details.iloc[0]
+            play_time_display = derive_playtime(details) or play_time_display
+            players_display = derive_players(details) or players_display
+
+        insight_key = int(bgg_id) if pd.notna(bgg_id) else title
+        insight_text = st.session_state["game_insights"].get(insight_key)
+        if insight_text is None:
+            game_payload = {
+                "name": title,
+                "avg_rating": rating_display,
+                "categories": row.get("game_categories", []),
+                "mechanics": row.get("game_mechanics", []),
+                "hybrid_score": score,
+                "play_time": play_time_display,
+                "players": players_display,
+            }
+            context = st.session_state.get("search_context", {})
+            insight_text = generate_game_insight(game_payload, context) or ""
+            st.session_state["game_insights"][insight_key] = insight_text
 
         cards.append(
             f'<div class="game-card">'
-            f'  <img src="{image_url}" class="game-image" alt="{title}">'
+            f'  <div class="game-image-wrapper">'
+            f'    <img src="{image_url}" alt="{title}">'
+            f'  </div>'
             f'  <div class="game-content">'
             f'    <div class="game-title">{title}</div>'
-            f'    <div class="game-meta">&#9733; {row.get("avg_rating", "N/A")}</div>'
+            f'    <div class="game-meta"><span class="star-icon">&#9733;</span> <span class="rating-value">{rating_display}</span></div>'
+            f'    <div class="game-meta-secondary">'
+            f'      <span class="meta-item"><span class="clock-icon">&#128337;</span>'
+            f'        <span class="meta-value">{play_time_display}</span></span>'
+            f'      <span class="meta-item"><span class="player-icon">&#128101;</span>'
+            f'        <span class="meta-value">{players_display}</span></span>'
+            f'    </div>'
+            f'    <div class="game-insight">{insight_text or "We think this will be a great fit!"}</div>'
             f'    <div class="game-desc">{desc}</div>'
-            f'    <a href="{row.get("bgg_link", "https://boardgamegeek.com/")}" '
+            f'    <a href="{bgg_link}" '
             f'       class="game-link" target="_blank">View on BGG &rarr;</a>'
             f'  </div>'
             f'</div>'
@@ -460,22 +758,6 @@ elif isinstance(recommendations_df, pd.DataFrame):
     cards.append("</div>")
     st.markdown("".join(cards), unsafe_allow_html=True)
 
-    st.subheader("Why we think you'll like these games", anchor=None)
-
-    explanation_text = st.session_state.get("recommendation_reason")
-    if explanation_text is None:
-        with st.spinner(""):
-            explanation = generate_recommendation_reason(
-                st.session_state.get("search_context", {}),
-                recommendations_df,
-            )
-            st.session_state["recommendation_reason"] = explanation
-            explanation_text = explanation
-
-    if explanation_text:
-        st.write(explanation_text)
-    else:
-        st.info("We couldn't generate a personalized explanation this time.")
 else:
     st.warning("Unable to display recommendations. Please try running the search again.")
 
