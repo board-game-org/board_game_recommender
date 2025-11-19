@@ -362,6 +362,12 @@ CARD_GRID_STYLE = f"""
     margin-bottom: 0.4rem;
     color: {FONT_PRIMARY};
 }}
+.game-year {{
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    color: {FONT_PRIMARY};
+}}
 .game-meta {{
     font-size: 1rem;
     color: #B8B8B8;
@@ -657,6 +663,7 @@ elif isinstance(recommendations_df, pd.DataFrame):
         image_url = row.get("asset_url") or DEFAULT_THUMBNAIL
         title = str(row["n_rank"]) + ".  " + str(row["name"])
         score = row.get("recommender_score", 0)
+        year_pub = "(" + str(row.get("year_published")) + ")"
         desc = f"Hybrid Score: {score:.3f}"
         bgg_link = row.get("bgg_link")
         if pd.isna(bgg_link) or not str(bgg_link).strip():
@@ -761,6 +768,7 @@ elif isinstance(recommendations_df, pd.DataFrame):
         if insight_text is None:
             game_payload = {
                 "name": title,
+                "year_pub": year_pub,
                 "avg_rating": rating_display,
                 "game_weight": weight_display,
                 "categories": row.get("game_categories", []),
@@ -780,7 +788,7 @@ elif isinstance(recommendations_df, pd.DataFrame):
             f'    <img src="{image_url}" alt="{title}">'
             f'  </div>'
             f'  <div class="game-content">'
-            f'    <div class="game-title">{title}</div>'
+            f'    <div class="game-title">{title} <span class="game-year">{year_pub}</span></div>'
             f'    <div class="game-meta"><span class="star-icon">&#9733;</span> <span class="rating-value">{rating_display}</span></div>'
             f'    <div class="game-meta-secondary">'
             f'      <span class="meta-item"><span class="clock-icon">&#128337;</span>'
